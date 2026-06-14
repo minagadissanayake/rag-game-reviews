@@ -1,6 +1,5 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-from app.retrieval.retriever import retrieve
 from openai import OpenAI
 from app.config import settings
 
@@ -16,8 +15,13 @@ class QueryResponse(BaseModel):
 
 @router.post("/query", response_model=QueryResponse)
 def query(req: QueryRequest):
-    hits = retrieve(req.question)
-    context = "\n\n".join([h["text"] for h in hits])
+    try:
+        from app.retrieval.retriever import retrieve
+        hits = retrieve(req.question)
+    except Exception:
+        hits = []
+
+    context = "\n\n".join([h["text"] for h in hits]) if hits else "No game data available."
 
     prompt = f"""You are a knowledgeable game critic assistant.
 Answer the user's question using only the game information provided below.
