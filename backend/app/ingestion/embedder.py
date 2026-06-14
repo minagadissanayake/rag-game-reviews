@@ -1,11 +1,11 @@
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
-from sentence_transformers import SentenceTransformer
+from openai import OpenAI
 from app.config import settings
 import uuid
 
 _client = None
-_model = None
+_openai = None
 
 def get_client():
     global _client
@@ -16,11 +16,18 @@ def get_client():
         )
     return _client
 
-def get_model():
-    global _model
-    if _model is None:
-        _model = SentenceTransformer(settings.embedding_model)
-    return _model
+def get_openai():
+    global _openai
+    if _openai is None:
+        _openai = OpenAI(api_key=settings.openai_api_key)
+    return _openai
+
+def embed(texts: list[str]) -> list[list[float]]:
+    response = get_openai().embeddings.create(
+        model="text-embedding-3-small",
+        input=texts
+    )
+    return [r.embedding for r in response.data]
 
 def get_or_create_collection():
     client = get_client()
@@ -28,14 +35,14 @@ def get_or_create_collection():
     if settings.collection_name not in collections:
         client.create_collection(
             collection_name=settings.collection_name,
-            vectors_config=VectorParams(size=384, distance=Distance.COSINE)
+            vectors_config=VectorParams(size=1536, distance=Distance.COSINE)
         )
         print(f"Created collection: {settings.collection_name}")
     return client
 
 def upsert_chunks(chunks: list[str], doc_id: str, metadata: dict = {}):
     client = get_or_create_collection()
-    embeddings = get_model().encode(chunks).tolist()
+    embeddings = embed(chunks)
 
     points = [
         PointStruct(

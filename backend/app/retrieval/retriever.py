@@ -1,10 +1,9 @@
-from app.ingestion.embedder import get_client, get_model
+from app.ingestion.embedder import get_client, embed
 from app.config import settings
 
 def retrieve(query: str) -> list[dict]:
     client = get_client()
-    model = get_model()
-    query_embedding = model.encode([query]).tolist()[0]
+    query_embedding = embed([query])[0]
 
     results = client.search(
         collection_name=settings.collection_name,
@@ -15,7 +14,7 @@ def retrieve(query: str) -> list[dict]:
 
     hits = []
     for r in results:
-        payload = r.payload
+        payload = dict(r.payload)
         text = payload.pop("text", "")
         hits.append({
             "text": text,
