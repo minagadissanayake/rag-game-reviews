@@ -1,12 +1,10 @@
 from sentence_transformers import SentenceTransformer
-from app.ingestion.embedder import get_or_create_collection
+from app.ingestion.embedder import get_or_create_collection, get_model
 from app.config import settings
-
-model = SentenceTransformer(settings.embedding_model)
 
 def retrieve(query: str) -> list[dict]:
     collection = get_or_create_collection()
-    query_embedding = model.encode([query]).tolist()
+    query_embedding = get_model().encode([query]).tolist()
 
     results = collection.query(
         query_embeddings=query_embedding,
