@@ -1,22 +1,25 @@
-from sentence_transformers import SentenceTransformer
-from app.ingestion.embedder import get_or_create_collection, get_model
+from app.ingestion.embedder import get_client, get_model
 from app.config import settings
 
 def retrieve(query: str) -> list[dict]:
-    collection = get_or_create_collection()
-    query_embedding = get_model().encode([query]).tolist()
+    client = get_client()
+    model = get_model()
+    query_embedding = model.encode([query]).tolist()[0]
 
-    results = collection.query(
-        query_embeddings=query_embedding,
-        n_results=settings.top_k,
-        include=["documents", "metadatas", "distances"]
+    results = client.search(
+        collection_name=settings.collection_name,
+        query_vector=query_embedding,
+        limit=settings.top_k,
+        with_payload=True
     )
 
     hits = []
-    for i, doc in enumerate(results["documents"][0]):
+    for r in results:
+        payload = r.payload
+        text = payload.pop("text", "")
         hits.append({
-            "text": doc,
-            "metadata": results["metadatas"][0][i],
-            "score": round(1 - results["distances"][0][i], 4)
+            "text": text,
+            "metadata": payload,
+            "score": round(r.score, 4)
         })
     return hits

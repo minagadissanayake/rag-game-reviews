@@ -3,28 +3,17 @@ import os
 import re
 from pathlib import Path
 
-# Absolute paths - no ambiguity
 ROOT_DIR = Path(__file__).resolve().parent.parent
 BACKEND_DIR = ROOT_DIR / "backend"
 DATA_DIR = BACKEND_DIR / "data" / "raw"
-CHROMA_DIR = BACKEND_DIR / "chroma_db"
 
 sys.path.append(str(BACKEND_DIR))
 
 from app.ingestion.chunker import chunk_text
-import chromadb
-from sentence_transformers import SentenceTransformer
+from app.ingestion.embedder import upsert_chunks, get_or_create_collection
 
-# Connect directly - bypass config entirely
-client = chromadb.PersistentClient(path=str(CHROMA_DIR))
-model = SentenceTransformer("all-MiniLM-L6-v2")
-collection = client.get_or_create_collection(
-    name="game-reviews",
-    metadata={"hnsw:space": "cosine"}
-)
-
-print(f"Data dir: {DATA_DIR}")
-print(f"Chroma dir: {CHROMA_DIR}")
+# Make sure collection exists
+get_or_create_collection()
 
 count = 0
 for filename in os.listdir(DATA_DIR):
@@ -49,18 +38,8 @@ for filename in os.listdir(DATA_DIR):
     }
 
     chunks = chunk_text(text)
-    embeddings = model.encode(chunks).tolist()
-    ids = [f"{slug}::chunk::{i}" for i in range(len(chunks))]
-    metadatas = [{**metadata, "chunk_index": i} for i in range(len(chunks))]
-
-    collection.upsert(
-        ids=ids,
-        embeddings=embeddings,
-        documents=chunks,
-        metadatas=metadatas
-    )
+    upsert_chunks(chunks, doc_id=slug, metadata=metadata)
     count += 1
-    print(f"Upserted {len(chunks)} chunks for: {slug}")
+    print(f"Indexed {count}: {slug}")
 
-print(f"\nIngestion complete. {count} documents indexed.")
-print(f"Total chunks in collection: {collection.count()}")
+print(f"\nDone. {count} documents indexed to Qdrant Cloud.")
