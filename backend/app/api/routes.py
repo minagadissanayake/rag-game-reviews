@@ -6,8 +6,13 @@ from app.config import settings
 router = APIRouter()
 client = OpenAI(api_key=settings.openai_api_key)
 
+class Message(BaseModel):
+    role: str  # "user" or "assistant"
+    content: str
+
 class QueryRequest(BaseModel):
     question: str
+    history: list[Message] = []
 
 class QueryResponse(BaseModel):
     answer: str
@@ -23,21 +28,25 @@ def query(req: QueryRequest):
 
     context = "\n\n".join([h["text"] for h in hits]) if hits else "No game data available."
 
-    prompt = f"""You are a knowledgeable game critic assistant.
-Answer the user's question using only the game information provided below.
+    system_prompt = f"""You are a knowledgeable game critic assistant.
+Answer the user's question using the game information provided below and the conversation history.
 Be specific — mention game names, scores, and genres where relevant.
+If a follow-up question refers to games mentioned earlier in the conversation, use that context to answer.
 If the answer isn't in the context, say "I don't have enough information about that."
-Always mention which games you're drawing from in your answer.
 
-Game data:
-{context}
+Game data for current query:
+{context}"""
 
-User question: {req.question}
-"""
+    messages = [{"role": "system", "content": system_prompt}]
+
+    for msg in req.history:
+        messages.append({"role": msg.role, "content": msg.content})
+
+    messages.append({"role": "user", "content": req.question})
 
     response = client.chat.completions.create(
         model=settings.llm_model,
-        messages=[{"role": "user", "content": prompt}]
+        messages=messages
     )
 
     return QueryResponse(
