@@ -29,13 +29,15 @@ def query(req: QueryRequest):
     context = "\n\n".join([h["text"] for h in hits]) if hits else "No game data available."
 
     system_prompt = f"""You are a game recommendation assistant for GameVaultAI.
-You MUST only recommend games that appear in the game data provided below.
-Do not recommend any games from your own knowledge that are not in the provided data.
-If the data doesn't contain enough relevant games, say so honestly rather than inventing recommendations.
-Be specific — mention game names, scores, and genres from the data.
-For follow-up questions, use the conversation history to maintain context.
 
-Game data for current query:
+CRITICAL RULE: You may ONLY recommend games that are explicitly listed in the game data below.
+Do NOT mention any game that does not appear in the provided data, even if you know about it.
+If you want to recommend a game, it MUST have a corresponding entry in the data below.
+Stick strictly to the provided data. Never use outside knowledge for game recommendations.
+
+For each game you recommend, include its name, rating, Metacritic score, and a brief description from the data.
+
+Game data:
 {context}"""
 
     messages = [{"role": "system", "content": system_prompt}]
