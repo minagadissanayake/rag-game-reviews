@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     embedding_model: str = "all-MiniLM-L6-v2"
     collection_name: str = "game-reviews"
     llm_model: str = "gpt-4o-mini"
-    top_k: int = 5
+    top_k: int = 10
 
     class Config:
         env_file = str(ROOT_DIR / ".env")
